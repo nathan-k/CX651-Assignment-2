@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #define HEAP_SIZE 2048
+#define ALIGNMENT 16
 
 typedef struct header {
     size_t size;
@@ -23,10 +24,16 @@ void print_freelist() {
     printf("\n --- \n");
 }
 
-// splits block in two if the leftover can hold a header plus at least one byte
-// of data, leaving block sized exactly for the request
+// rounds a request up to the next multiple of ALIGNMENT, so every block we hand
+// out keeps the one after it aligned too
+size_t align_up(size_t size) {
+    return (size + ALIGNMENT - 1) & ~((size_t)ALIGNMENT - 1);
+}
+
+// splits block in two if the leftover can hold a header plus a full aligned
+// chunk of data, leaving block sized exactly for the request
 void split_block(m_header * block, size_t size) {
-    if (block->size < size + sizeof(m_header) + 1) {
+    if (block->size < size + sizeof(m_header) + ALIGNMENT) {
         return;
     }
 
@@ -42,6 +49,28 @@ void split_block(m_header * block, size_t size) {
 
     block->size = size;
     block->next = rest;
+}
+
+// merges block with its neighbours when they are also free. list order matches
+// memory order, so a neighbour's header and data are absorbed as one span.
+void coalesce(m_header * block) {
+    m_header * next = block->next;
+    if (next != NULL && !next->in_use) {
+        block->size += sizeof(m_header) + next->size;
+        block->next = next->next;
+        if (block->next != NULL) {
+            block->next->prev = block;
+        }
+    }
+
+    m_header * prev = block->prev;
+    if (prev != NULL && !prev->in_use) {
+        prev->size += sizeof(m_header) + block->size;
+        prev->next = block->next;
+        if (prev->next != NULL) {
+            prev->next->prev = prev;
+        }
+    }
 }
 
 void * new_malloc(size_t size) {
@@ -71,6 +100,8 @@ void * new_malloc(size_t size) {
         return NULL;
     }
 
+    size = align_up(size);
+
     // first fit: take the first free block large enough to hold the request
     m_header * curr = freelist;
     while (curr != NULL) {
@@ -93,4 +124,5 @@ void new_free(void * ptr) {
     // the header sits immediately before the data we handed out
     m_header * block = (m_header *)ptr - 1;
     block->in_use = 0;
+    coalesce(block);
 }

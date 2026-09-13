@@ -1,0 +1,1 @@
+(1) Allocations fail because of fragmentation. Blocks that are freed are never merged. The usable bytes get divided into several small free blocks, none of which are large enough on their own.
