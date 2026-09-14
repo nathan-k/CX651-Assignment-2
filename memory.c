@@ -3,8 +3,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define HEAP_SIZE 2048
-
 typedef struct header {
     size_t size;
     struct header * prev;
@@ -23,25 +21,23 @@ void print_freelist() {
     printf("\n --- \n");
 }
 
-// splits block in two if the leftover can hold a header plus at least one byte
-// of data, leaving block sized exactly for the request
-void split_block(m_header * block, size_t size) {
+void split_block(m_header* block, size_t size) {
     if (block->size < size + sizeof(m_header) + 1) {
         return;
     }
 
-    m_header * rest = (m_header *)((char *)(block + 1) + size);
-    rest->size = block->size - size - sizeof(m_header);
-    rest->in_use = 0;
-    rest->prev = block;
-    rest->next = block->next;
+    m_header* remaining = (m_header*)((char *)(block + 1) + size);
+    remaining->size = block->size - size - sizeof(m_header);
+    remaining->in_use = 0;
+    remaining->prev = block;
+    remaining->next = block->next;
 
-    if (rest->next != NULL) {
-        rest->next->prev = rest;
+    if (remaining->next != NULL) {
+        remaining->next->prev = remaining;
     }
 
     block->size = size;
-    block->next = rest;
+    block->next = remaining;
 }
 
 void * new_malloc(size_t size) {
@@ -60,8 +56,7 @@ void * new_malloc(size_t size) {
             return NULL;
         }
 
-        // the whole mapping starts life as one free block
-        freelist->size = HEAP_SIZE - sizeof(m_header);
+        freelist->size = 2048 - sizeof(m_header);
         freelist->prev = NULL;
         freelist->next = NULL;
         freelist->in_use = 0;
@@ -71,8 +66,8 @@ void * new_malloc(size_t size) {
         return NULL;
     }
 
-    // first fit: take the first free block large enough to hold the request
-    m_header * curr = freelist;
+    // Use the first free block that is large enough
+    m_header* curr = freelist;
     while (curr != NULL) {
         if (!curr->in_use && curr->size >= size) {
             split_block(curr, size);
@@ -91,6 +86,6 @@ void new_free(void * ptr) {
     }
 
     // the header sits immediately before the data we handed out
-    m_header * block = (m_header *)ptr - 1;
+    m_header* block = (m_header*)ptr - 1;
     block->in_use = 0;
 }

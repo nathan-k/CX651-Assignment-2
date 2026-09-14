@@ -1,1 +1,9 @@
 (1) Allocations fail because of fragmentation. Blocks that are freed are never merged. The usable bytes get divided into several small free blocks, none of which are large enough on their own.
+
+(2) plot-fail_rate.png shows that as allocation size increases, the non-coalesced solution encounters a much higher fail rate.
+
+plot-throughput.png shows that as allocation size increases, the coalesced solution experiences much higher throughput.
+
+Coalescing has better throughput as allocation size increases, because it merges adjacent free blocks (keeping the list short). However, in the non-coalesced solution, the list grows longer as fragmentation occurs, and it has to scan the entire list every time it fails.
+
+(3) Coalescing has a better fail rate, because it maintains a large unfragmented block of free space. The non-coalesced solution encounters fragmentation, so it fails to find a suitable free block as allocation size increases.
