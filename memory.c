@@ -85,7 +85,6 @@ void new_free(void * ptr) {
         return;
     }
 
-    // the header sits immediately before the data we handed out
     m_header* block = (m_header*)ptr - 1;
     block->in_use = 0;
 }
